@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MomentumOS — v1.1 (Polish + Onboard + Reminders)</title>
+  <style>
+    /* THEME + MOTION - polished, dark-first, fluid micro-interactions */
+    :root{
+      --bg:#061018; --panel:#0f1720; --muted:#9aa4b2; --accent-a:#06b6d4; --accent-b:#7be495; --danger:#ff6b6b; --glass:rgba(255,255,255,0.03);
+      --card-radius:14px; --pad:14px; --ease:cubic-bezier(.2,.9,.2,1);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;background:linear-gradient(180deg,#041018 0%, #061018 100%);color:#e6eef6;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial;}
+
+    /* Layout */
+    .app{max-width:1200px;margin:24px auto;padding:20px;display:grid;grid-template-columns:360px 1fr;gap:20px}
+    header{grid-column:1/3;display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+    .brand{display:flex;gap:12px;align-items:center}
+    .logo{width:52px;height:52px;border-radius:12px;background:linear-gradient(135deg,#0ea5a4,#06b6d4);display:flex;align-items:center;justify-content:center;font-weight:800;box-shadow:0 8px 20px rgba(3,12,18,0.6)}
+    h1{font-size:18px;margin:0}
+    .sub{color:var(--muted);font-size:12px}
+
+    /* Cards */
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:14px;border-radius:12px;backdrop-filter: blur(6px);}
+    .sidebar{background:transparent;border-radius:var(--card-radius);padding:var(--pad);min-height:640px;display:flex;flex-direction:column;gap:14px}
+
+    /* Buttons */
+    .btn{display:inline-flex;align-items:center;gap:8px;justify-content:center;padding:8px 12px;border-radius:10px;background:linear-gradient(180deg,var(--accent-a),var(--accent-b));color:#021517;font-weight:700;cursor:pointer;transition:transform .18s var(--ease),box-shadow .18s var(--ease)}
+    .btn:hover{transform:translateY(-4px);box-shadow:0 10px 30px rgba(6,182,212,0.12)}
+    .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);font-weight:600}
+
+    /* micro interactions */
+    .habit-item{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding:10px;border-radius:10px;transition:background .18s var(--ease),transform .18s var(--ease)}
+    .habit-item:hover{transform:translateX(6px);background:rgba(255,255,255,0.02)}
+
+    /* progress circle */
+    .circle-wrap{display:flex;align-items:center;gap:16px}
+    .circle{width:150px;height:150px}
+    .progress-label{text-align:center}
+
+    /* calendar */
+    .calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+    .day{padding:8px;border-radius:8px;text-align:center;font-size:12px;background:transparent;transition:transform .12s var(--ease),box-shadow .12s var(--ease)}
+    .day:hover{transform:translateY(-6px);box-shadow:0 12px 24px rgba(2,6,23,0.6)}
+    .day.active{background:linear-gradient(90deg,#073b2b,#0ea5a4);color:#041014}
+
+    /* onboarding modal */
+    .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,rgba(2,6,23,0.7),rgba(2,6,23,0.85));z-index:120}
+    .modal-card{width:820px;background:#071218;padding:22px;border-radius:16px;box-shadow:0 30px 80px rgba(2,6,23,0.8)}
+    .template-row{display:flex;gap:12px;margin-top:12px}
+    .template{flex:1;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);cursor:pointer;transition:transform .16s var(--ease),box-shadow .16s var(--ease)}
+    .template:hover{transform:translateY(-6px);box-shadow:0 14px 30px rgba(0,0,0,0.6)}
+
+    /* focus overlay */
+    .focus-overlay{position:fixed;inset:0;background:linear-gradient(180deg,rgba(3,6,10,0.9),rgba(0,0,0,0.85));display:flex;align-items:center;justify-content:center;z-index:90;display:none}
+
+    /* small responsive */
+    @media (max-width:980px){.app{grid-template-columns:1fr;}.sidebar{order:2}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <div class="logo">M</div>
+        <div>
+          <h1>MomentumOS</h1>
+          <div class="sub">Ram Recursive Progression — polished v1.1</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:center">
+        <div class="sub">Local-first • No excuses</div>
+        <div class="btn" id="proBtn">PRO</div>
+      </div>
+    </header>
+
+    <aside class="sidebar">
+      <div class="card profile" style="display:flex;gap:12px;align-items:center">
+        <div style="width:64px;height:64px;border-radius:12px;background:linear-gradient(135deg,#15202b,#2dd4bf);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px" id="avatarText">R</div>
+        <div>
+          <div style="font-weight:800" id="userName">Rudransh</div>
+          <div class="sub">MomentumOS — Discipline Engine</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-weight:800">Streak & Rank</div>
+          <div class="muted" id="streakLabel">—</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <div style="flex:1">
+            <div style="font-size:20px;font-weight:800" id="streakNum">0</div>
+            <div class="muted">Current Streak</div>
+          </div>
+          <div style="flex:1;text-align:right">
+            <div style="font-size:16px;font-weight:700" id="rankLabel">Iron</div>
+            <div class="muted">Rank</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="font-weight:800;margin-bottom:8px">Habits</div>
+        <div id="habitList"></div>
+        <div style="margin-top:8px"><button class="btn" id="addHabit">+ Add Habit</button></div>
+      </div>
+
+      <div class="card">
+        <div style="font-weight:800;margin-bottom:8px">Quick Actions</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn ghost" id="exportBtn">Export</button>
+          <button class="btn ghost" id="importBtn">Import</button>
+          <button class="btn ghost" id="clearBtn">Reset Data</button>
+        </div>
+      </div>
+
+    </aside>
+
+    <main style="display:grid;grid-template-rows:auto 1fr;gap:12px">
+      <div style="display:flex;gap:12px">
+        <div class="card" style="flex:1">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div style="font-weight:800">Daily Dashboard</div>
+            <div class="muted" id="dateLabel"></div>
+          </div>
+          <div class="circle-wrap">
+            <svg class="circle" viewBox="0 0 36 36">
+              <defs>
+                <linearGradient id="g1" x1="0" x2="1">
+                  <stop offset="0%" stop-color="#06b6d4"/>
+                  <stop offset="100%" stop-color="#7be495"/>
+                </linearGradient>
+              </defs>
+              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#0b1220" stroke-width="3"/>
+              <path id="progressArc" d="" fill="none" stroke="url(#g1)" stroke-width="3" stroke-linecap="round"/>
+              <text x="18" y="20.5" text-anchor="middle" font-size="3" fill="#e6eef6" id="progressText">0%</text>
+            </svg>
+            <div class="progress-label">
+              <div style="font-weight:800" id="dailyScore">0 / 100</div>
+              <div class="muted">Weighted score</div>
+            </div>
+            <div style="margin-left:auto;display:flex;flex-direction:column;gap:8px;align-items:flex-end">
+              <div style="font-weight:800">Rank</div>
+              <div style="font-size:16px" id="bigRank">Iron</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="width:420px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div style="font-weight:800">Weekly Activity</div>
+            <div class="muted">Last 7 days</div>
+          </div>
+          <canvas id="barChart" height="140"></canvas>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 360px;gap:12px">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div style="font-weight:800">Monthly Calendar</div>
+            <div class="muted">Quick check</div>
+          </div>
+          <div class="calendar" id="calendar"></div>
+
+          <div style="margin-top:12px;display:flex;gap:8px;align-items:center;justify-content:space-between">
+            <div>
+              <div class="muted">Streak flames</div>
+              <div style="font-weight:800" id="streakFlames">🔥🔥🔥</div>
+            </div>
+            <div>
+              <button class="btn" id="startFocus">Start Focus</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="card">
+            <div style="font-weight:800;margin-bottom:8px">Truth Journal</div>
+            <textarea id="journal" placeholder="Where did I win? Where did I waste time? One correction for tomorrow..." style="width:100%;height:110px;background:transparent;border:1px solid rgba(255,255,255,0.04);padding:10px;border-radius:8px;color:inherit"></textarea>
+            <div style="display:flex;gap:8px;margin-top:8px;justify-content:flex-end">
+              <button class="btn ghost" id="clearJournal">Clear</button>
+              <button class="btn" id="saveJournal">Save</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div style="font-weight:800;margin-bottom:8px">Radar — Habit Strengths</div>
+            <canvas id="radarChart" height="220"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;margin-top:8px">
+        <div class="card" style="flex:1">
+          <div style="font-weight:800">AI Predictor</div>
+          <div class="muted">Analyzes last 14 days and warns when you will break</div>
+          <div id="aiPredict" style="margin-top:8px">Loading...</div>
+        </div>
+        <div class="card" style="width:300px">
+          <div style="font-weight:800">Rankboard</div>
+          <div style="margin-top:8px" id="rankboard">--</div>
+        </div>
+      </div>
+    </main>
+
+    <div class="focus-overlay" id="focusOverlay">
+      <div class="card" style="width:520px;text-align:center">
+        <div style="font-weight:900;font-size:18px;margin-bottom:8px">Focus Mode</div>
+        <div class="muted" id="focusTarget">Focus: Task</div>
+        <div style="font-size:44px;font-weight:900;margin:12px 0" id="focusTimer">25:00</div>
+        <div style="display:flex;gap:8px;justify-content:center">
+          <button class="btn" id="focusStop">Stop</button>
+          <button class="btn ghost" id="focusExtend">+5m</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ONBOARDING MODAL (templates + quick start) -->
+  <div class="modal" id="onboardModal" style="display:none">
+    <div class="modal-card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-weight:900;font-size:18px">Welcome to MomentumOS</div>
+          <div class="muted">Pick a starter template or customize your own — we make consistency unavoidable.</div>
+        </div>
+        <div><button class="btn ghost" id="skipOnboard">Skip</button></div>
+      </div>
+
+      <div class="template-row">
+        <div class="template" data-template="study">
+          <div style="font-weight:800">Study Powerhouse</div>
+          <div class="muted">Focus sessions, spaced repetition, study journal.</div>
+          <ul style="margin-top:8px"><li>Study 50m</li><li>Mini-Review 10m</li><li>Journal</li></ul>
+        </div>
+        <div class="template" data-template="fitness">
+          <div style="font-weight:800">Daily Fitness</div>
+          <div class="muted">Short workouts and mobility.</div>
+          <ul style="margin-top:8px"><li>Warm-up 5m</li><li>Workout 20m</li><li>Stretch 5m</li></ul>
+        </div>
+        <div class="template" data-template="routine">
+          <div style="font-weight:800">Morning Routine</div>
+          <div class="muted">Set the tone for the day.</div>
+          <ul style="margin-top:8px"><li>Wake & Hydrate</li><li>Read 10m</li><li>Plan day</li></ul>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;margin-top:14px">
+        <div class="muted">Tip: Use weighted habits for things that move the needle.</div>
+        <div style="display:flex;gap:8px"><button class="btn ghost" id="customOnboard">Custom</button><button class="btn" id="applyTemplate">Apply</button></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    /////////////////////////
+    // MomentumOS v1.1
+    // - Added onboarding templates
+    // - Polished animations & micro-interactions
+    // - Modular code sections with clear areas
+    // - Basic gamified reminders via Notification API + Service Worker placeholder (see comments)
+    /////////////////////////
+
+    const STORE_KEY = 'momentumos_v1_data_v1_1';
+    const today = new Date();
+    document.getElementById('dateLabel').textContent = today.toLocaleDateString();
+
+    // default data (unchanged)
+    const defaultData = {
+      user:{name:'Rudransh',avatar:'R'},
+      habits:[
+        {id:1,title:'Study — Focused (50m)',type:'vital',weight:30,done:false},
+        {id:2,title:'Exercise 20m',type:'growth',weight:20,done:false},
+        {id:3,title:'Journal',type:'optional',weight:10,done:false}
+      ],
+      journal:{},
+      history:[],
+      streak:0,
+      reminders:[] // {id,habitId,timeISO,repeat:'daily'|'none'}
+    };
+
+    function load(){try{const raw=localStorage.getItem(STORE_KEY);return raw?JSON.parse(raw):structuredClone(defaultData);}catch(e){return structuredClone(defaultData)}}
+    function save(d){localStorage.setItem(STORE_KEY,JSON.stringify(d))}
+    let data = load();
+
+    // UI helpers
+    function $(s){return document.querySelector(s)}
+    function $all(s){return Array.from(document.querySelectorAll(s))}
+
+    $('#userName').textContent = data.user.name;
+    $('#avatarText').textContent = data.user.avatar;
+
+    // -------------------- HABIT RENDER (with micro-interactions + animations)
+    const habitList = document.getElementById('habitList');
+    function renderHabits(){habitList.innerHTML='';data.habits.forEach(h=>{
+      const el = document.createElement('div');el.className='habit-item';
+      const left = document.createElement('div');left.innerHTML = `<div style=\"font-weight:800\">${h.title}</div><div class=\"muted\" style=\"font-size:12px\">${h.type} • ${h.weight} pts</div>`;
+      const right = document.createElement('div');
+      const btn = document.createElement('button');btn.className='btn';btn.textContent = h.done? 'Done':'Mark';
+      btn.onclick = ()=>{h.done = !h.done;btn.textContent=h.done?'Done':'Mark';compute();save(data);renderHabits();pulseElement(btn)}
+      const rem = document.createElement('button'); rem.className='btn ghost'; rem.style.marginLeft='8px'; rem.textContent='Remind';
+      rem.onclick = ()=>{scheduleReminderForHabit(h)}
+      right.appendChild(btn); right.appendChild(rem);
+      el.appendChild(left); el.appendChild(right); habitList.appendChild(el);
+    })}
+
+    function pulseElement(el){el.animate([{transform:'scale(1)'},{transform:'scale(1.06)'},{transform:'scale(1)'}],{duration:320,easing:'ease-out'})}
+
+    // Add habit with quick inline modal
+    $('#addHabit').onclick = ()=>{
+      const title = prompt('New habit name'); if(!title) return;
+      const weight = parseInt(prompt('weight (10/20/30)'),10)||10;
+      const type = weight>=30? 'vital' : weight>=20 ? 'growth' : 'optional';
+      data.habits.push({id:Date.now(),title,weight,type,done:false}); save(data); renderAll(); flash('Habit added');
+    }
+
+    // -------------------- COMPUTE + RANK + HISTORY
+    function compute(){
+      const total = data.habits.reduce((s,h)=>s+h.weight,0)||100;
+      const gained = data.habits.reduce((s,h)=>s + (h.done? h.weight:0),0);
+      const perc = Math.round((gained/total)*100);
+      $('#progressText').textContent = perc + '%';
+      $('#dailyScore').textContent = `${gained} / ${total}`;
+      drawArc(perc);
+      updateRank(perc);
+      const key = (new Date()).toISOString().slice(0,10);
+      const existing = data.history.find(h=>h.date===key);
+      if(existing) existing.score = perc; else data.history.push({date:key,score:perc});
+      save(data);
+      renderCharts();
+    }
+
+    // SVG arc (same but smoother)
+    function polarToCartesian(cx, cy, r, angleDeg){
+      const angleRad = (angleDeg-90) * Math.PI/180.0;
+      return {x: cx + (r * Math.cos(angleRad)), y: cy + (r * Math.sin(angleRad))};
+    }
+    function describeArc(x, y, r, startAngle, endAngle){
+      const start = polarToCartesian(x, y, r, endAngle);
+      const end = polarToCartesian(x, y, r, startAngle);
+      const largeArcFlag = endAngle - startAngle <= 180 ? '0' : '1';
+      const d = [`M ${start.x} ${start.y}`, `A ${r} ${r} 0 ${largeArcFlag} 0 ${end.x} ${end.y}`].join(' ');
+      return d;
+    }
+    function drawArc(pct){
+      const angle = Math.min(100, Math.max(0,pct)) / 100 * 360;
+      const d = describeArc(18,18,15.5,0,angle);
+      const el = document.getElementById('progressArc');
+      // animate path morph using stroke-dashoffset trick could be better; keep simple
+      el.setAttribute('d', d);
+    }
+
+    function updateRank(perc){
+      const rankEl = $('#rankLabel');
+      let rank='Iron';
+      if(perc >= 90) rank='God Mode';
+      else if(perc >= 75) rank='Titan';
+      else if(perc >= 60) rank='Elite';
+      else if(perc >= 45) rank='Gold';
+      else if(perc >= 30) rank='Silver';
+      else rank='Iron';
+      rankEl.textContent = rank; $('#bigRank').textContent = rank; $('#rankLabel').textContent = rank; $('#rankFlame')?.textContent && ($('#rankFlame').textContent = perc);
+      $('#streakNum').textContent = data.streak || 0;
+    }
+
+    // -------------------- CHARTS
+    const barCanvas = document.getElementById('barChart');
+    const barCtx = barCanvas.getContext('2d');
+    function renderCharts(){
+      const last7 = [];
+      for(let i=6;i>=0;i--){
+        const d = new Date(); d.setDate(d.getDate()-i);
+        const key = d.toISOString().slice(0,10);
+        const item = data.history.find(h=>h.date===key) || {date:key,score:0};
+        last7.push(item.score);
+      }
+      // draw bar
+      const w = barCanvas.width = barCanvas.offsetWidth*window.devicePixelRatio;
+      const h = barCanvas.height = 140*window.devicePixelRatio;
+      barCtx.clearRect(0,0,w,h);
+      const pad = 14*window.devicePixelRatio;
+      const bw = (w - pad*2) / 7 * 0.6;
+      last7.forEach((v,i)=>{
+        const x = pad + i * ((w - pad*2) / 7) + ( ( (w - pad*2) / 7) - bw)/2;
+        const vh = (v/100) * (h - pad*2);
+        barCtx.fillStyle = 'rgba(123,228,149,0.95)';
+        barCtx.fillRect(x, h - pad - vh, bw, vh);
+      });
+
+      // radar simplified (recompute)
+      const radar = document.getElementById('radarChart');
+      const rctx = radar.getContext('2d');
+      const rw = radar.width = radar.offsetWidth*window.devicePixelRatio;
+      const rh = radar.height = 220*window.devicePixelRatio;
+      rctx.clearRect(0,0,rw,rh);
+      const center = {x:rw/2,y:rh/2};
+      const radius = Math.min(rw,rh)/2 - 30*window.devicePixelRatio;
+      const labels = data.habits.map(h=>h.title);
+      const vals = data.habits.map(h=>h.done? h.weight: 0);
+      const count = labels.length || 3;
+      rctx.strokeStyle='rgba(255,255,255,0.04)';
+      for(let g=3;g>=1;g--){
+        rctx.beginPath();
+        for(let i=0;i<count;i++){
+          const ang = (i/count) * Math.PI*2 - Math.PI/2;
+          const r = (radius * (g/3));
+          const x = center.x + Math.cos(ang)*r; const y = center.y + Math.sin(ang)*r;
+          if(i===0) rctx.moveTo(x,y); else rctx.lineTo(x,y);
+        }
+        rctx.closePath(); rctx.stroke();
+      }
+      rctx.fillStyle='rgba(255,255,255,0.8)'; rctx.font = `${12*window.devicePixelRatio}px sans-serif`;
+      for(let i=0;i<count;i++){
+        const ang = (i/count) * Math.PI*2 - Math.PI/2; const x = center.x + Math.cos(ang)*(radius+8*window.devicePixelRatio); const y = center.y + Math.sin(ang)*(radius+8*window.devicePixelRatio);
+        rctx.fillText(labels[i].slice(0,8), x - 10, y + 4);
+      }
+      rctx.beginPath();
+      for(let i=0;i<count;i++){
+        const ang = (i/count) * Math.PI*2 - Math.PI/2;
+        const r = radius * (vals[i]/30);
+        const x = center.x + Math.cos(ang)*r; const y = center.y + Math.sin(ang)*r;
+        if(i===0) rctx.moveTo(x,y); else rctx.lineTo(x,y);
+      }
+      rctx.closePath();
+      rctx.fillStyle = 'rgba(6,182,212,0.12)'; rctx.fill();
+      rctx.strokeStyle='rgba(123,228,149,0.9)'; rctx.stroke();
+
+      $('#rankboard').innerHTML = `<div style=\"font-weight:800\">${data.habits.length} habits • ${data.history.length} day(s) recorded</div>`;
+    }
+
+    // -------------------- CALENDAR
+    const cal = document.getElementById('calendar');
+    function renderCalendar(){
+      cal.innerHTML='';
+      const now = new Date(); const y = now.getFullYear(); const m = now.getMonth();
+      const first = new Date(y,m,1); const last = new Date(y,m+1,0);
+      const startDay = first.getDay();
+      for(let i=0;i<startDay;i++){const d=document.createElement('div');d.className='day';cal.appendChild(d)}
+      for(let d=1;d<=last.getDate();d++){
+        const el = document.createElement('div');el.className='day';el.textContent = d;
+        const key = new Date(y,m,d).toISOString().slice(0,10);
+        const rec = data.history.find(h=>h.date===key);
+        if(rec && rec.score >= 50) el.classList.add('active');
+        el.onclick = ()=>{alert('Day: '+key+' • score: '+(rec?rec.score:0));}
+        cal.appendChild(el);
+      }
+    }
+
+    // -------------------- JOURNAL
+    const journalEl = document.getElementById('journal');
+    $('#saveJournal').onclick = ()=>{const key = new Date().toISOString().slice(0,10); data.journal[key]=journalEl.value; save(data); flash('Journal saved')}
+    $('#clearJournal').onclick = ()=>{journalEl.value='';}
+
+    // -------------------- FOCUS MODE
+    const focusOverlay = document.getElementById('focusOverlay');
+    let focusTimer = null; let focusRemaining = 25*60;
+    function updateFocusText(){ const m = Math.floor(focusRemaining/60).toString().padStart(2,'0'); const s = (focusRemaining%60).toString().padStart(2,'0'); document.getElementById('focusTimer').textContent = `${m}:${s}`; }
+    $('#startFocus').onclick = ()=>{focusOverlay.style.display='flex'; focusRemaining = 25*60; updateFocusText(); focusTimer = setInterval(()=>{focusRemaining--; updateFocusText(); if(focusRemaining<=0){clearInterval(focusTimer); focusOverlay.style.display='none'; notify('Focus complete!', 'You completed your focus session — good job.');}},1000)}
+    $('#focusStop').onclick = ()=>{clearInterval(focusTimer); focusOverlay.style.display='none'}
+    $('#focusExtend').onclick = ()=>{focusRemaining+=300}
+
+    // -------------------- EXPORT/IMPORT/RESET
+    $('#exportBtn').onclick = ()=>{const dataStr = JSON.stringify(data,null,2); const blob = new Blob([dataStr],{type:'application/json'}); const url = URL.createObjectURL(blob); const a=document.createElement('a');a.href=url;a.download='momentumos_export.json';a.click();}
+    $('#importBtn').onclick = ()=>{const t=prompt('Paste JSON data'); if(!t) return; try{data = JSON.parse(t); save(data); renderAll(); alert('Imported')}catch(e){alert('Invalid JSON')}}
+    $('#clearBtn').onclick = ()=>{if(confirm('Reset all MomentumOS data?')){localStorage.removeItem(STORE_KEY); data = structuredClone(defaultData); save(data); renderAll(); flash('Data reset')}}
+
+    // -------------------- ONBOARDING + TEMPLATES
+    const onboardModal = $('#onboardModal');
+    function showOnboard(){onboardModal.style.display='flex'}
+    function hideOnboard(){onboardModal.style.display='none'}
+    $all('.template').forEach(t=>t.addEventListener('click', ()=>{const tpl=t.dataset.template; applyTemplate(tpl); hideOnboard(); flash('Template applied')}))
+    $('#skipOnboard').onclick = ()=>{hideOnboard();}
+    $('#applyTemplate').onclick = ()=>{const first = data.habits[0]; if(first){hideOnboard(); flash('Kept current habits')} else {applyTemplate('study'); hideOnboard(); flash('Study template applied')}}
+    $('#customOnboard').onclick = ()=>{hideOnboard(); const n=prompt('Comma separated habit names (e.g. Read 20m,Walk 15m)'); if(!n) return; const parts = n.split(',').map(s=>s.trim()).filter(Boolean); parts.forEach(p=>data.habits.push({id:Date.now()+Math.random(),title:p,weight:10,type:'optional',done:false})); save(data); renderAll(); flash('Custom template added')}
+
+    function applyTemplate(name){ if(name==='study'){data.habits = [ {id:1,title:'Study — Focused (50m)',type:'vital',weight:30,done:false},{id:2,title:'Mini-Review 10m',type:'growth',weight:20,done:false},{id:3,title:'Journal',type:'optional',weight:10,done:false} ]; } else if(name==='fitness'){data.habits=[{id:11,title:'Warm-up 5m',type:'optional',weight:10,done:false},{id:12,title:'Workout 20m',type:'vital',weight:30,done:false},{id:13,title:'Stretch 5m',type:'growth',weight:20,done:false}]; } else if(name==='routine'){data.habits=[{id:21,title:'Wake & Hydrate',type:'vital',weight:30,done:false},{id:22,title:'Read 10m',type:'growth',weight:20,done:false},{id:23,title:'Plan Day',type:'optional',weight:10,done:false}]; } save(data); renderAll(); }
+
+    // show onboarding if first run
+    if(!localStorage.getItem(STORE_KEY+'__seen_onboard')){showOnboard(); localStorage.setItem(STORE_KEY+'__seen_onboard','1')}
+
+    // -------------------- AI Predictor (simple but useful)
+    function aiPredict(){
+      const recent = data.history.slice(-7).map(x=>x.score||0);
+      const avg = recent.reduce((s,v)=>s+v,0)/ (recent.length||1);
+      const willBreak = avg < 40;
+      const el = document.getElementById('aiPredict');
+      el.innerHTML = `<div style=\"font-weight:800\">Avg (7d): ${Math.round(avg)}%</div><div class=\"muted\">${willBreak? 'Warning: Risk of break in next 3 days. Take corrective action.':'On track. Keep push.'}</div>`;
+    }
+
+    // -------------------- REMINDERS & NOTIFICATIONS (basic implementation)
+    // Requests permission and schedules local in-tab reminders. For real push notifications implement a Service Worker + Push subscription (requires HTTPS + server).
+    async function requestNotificationPermission(){
+      if(!('Notification' in window)) return false;
+      const perm = await Notification.requestPermission(); return perm === 'granted';
+    }
+
+    async function notify(title, body){
+      if(Notification.permission === 'granted'){
+        try{new Notification(title,{body,icon:null})}catch(e){console.warn(e)}
+      } else {
+        console.log('Notification not granted')
+      }
+    }
+
+    // wrapper used above
+    window.notify = notify;
+
+    // Schedule a simple in-tab reminder for a habit
+    function scheduleReminderForHabit(habit){
+      const time = prompt('Reminder in how many minutes from now? (e.g. 10)'); if(!time) return; const mins = parseInt(time,10)||10;
+      const id = Date.now(); const when = new Date(Date.now()+mins*60000).toISOString();
+      data.reminders.push({id,habitId:habit.id,timeISO:when,repeat:'none'}); save(data); flash('Reminder scheduled: '+mins+'m');
+      setTimeout(()=>{notify('MomentumOS — Reminder', `Time for: ${habit.title}`); flash(`Reminder: ${habit.title}`)}, mins*60000);
+    }
+
+    // -------------------- SIMPLE GAMIFIED PUSH: rank drop warnings
+    function startReminderLooper(){
+      // check reminders every 30s (in-tab). Real push requires server/service worker.
+      setInterval(()=>{
+        const now = new Date(); data.reminders.forEach(r=>{
+          if(new Date(r.timeISO) <= now){
+            const h = data.habits.find(x=>x.id===r.habitId);
+            if(h) notify('MomentumOS — Reminder', `Time for: ${h.title}`);
+            // remove non-repeat
+            if(r.repeat==='none') data.reminders = data.reminders.filter(x=>x.id!==r.id);
+            save(data);
+          }
+        })
+      },30000)
+    }
+
+    // -------------------- UTILITIES
+    function flash(msg){
+      const d = document.createElement('div'); d.textContent = msg; d.style.position='fixed'; d.style.right='18px'; d.style.bottom='18px'; d.style.padding='10px 14px'; d.style.borderRadius='10px'; d.style.background='linear-gradient(180deg,#052628,#0ea5a4)'; d.style.color='#021517'; d.style.fontWeight='800'; d.style.zIndex=9999; document.body.appendChild(d);
+      setTimeout(()=>{d.style.transition='opacity .4s'; d.style.opacity='0'; setTimeout(()=>d.remove(),400)},2400);
+    }
+
+    // -------------------- RENDER ALL
+    function renderAll(){ renderHabits(); compute(); renderCalendar(); renderCharts(); aiPredict(); }
+    renderAll();
+
+    // sample seed if empty
+    if(data.history.length===0){for(let i=3;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);data.history.push({date:d.toISOString().slice(0,10),score:Math.floor(40+Math.random()*60)})}save(data);renderAll()}
+
+    // start reminder checker
+    startReminderLooper();
+
+    // request notification permission on first load (polite)
+    requestNotificationPermission().then(granted=>{ if(granted) flash('Notifications enabled'); })
+
+    // Quick tip: Service Worker placeholder
+    // To enable real push notifications (outside tab), register a Service Worker, ask user to subscribe to push (VAPID), and run a server to send push messages.
+    // Example placeholder registration (uncomment when you add sw.js and host over HTTPS):
+    // if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').then(()=>console.log('sw registered'))}
+
+    // quick ui: if user wants multi-file conversion, we can split modules: /js/store.js, /js/ui.js, /js/notify.js and a build step.
+
+    // autosave
+    window.addEventListener('beforeunload', ()=>save(data));
+
+  </script>
+  <!-- Interaction Analytics (Instagram-style) -->
+  <section id="interaction-analytics" class="page-section hidden p-6">
+    <h2 class="text-2xl font-bold mb-4">Interaction Analytics</h2>
+    <canvas id="interactionChart" width="400" height="250"></canvas>
+  </section>
+
+  <script>
+    // --- Instagram-Style Interaction Graph ---
+    const interactionCtx = document.getElementById('interactionChart').getContext('2d');
+
+    new Chart(interactionCtx, {
+      type: 'bar',
+      data: {
+        labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'],
+        datasets: [
+          {
+            label: 'From Followers',
+            data: [32, 45, 50, 40, 55, 48, 60],
+            backgroundColor: 'rgba(54, 162, 235, 0.7)'
+          },
+          {
+            label: 'From Non-Followers',
+            data: [12, 25, 20, 30, 15, 22, 18],
+            backgroundColor: 'rgba(255, 99, 132, 0.7)'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            beginAtZero: true
+          }
+        }
+      }
+    });
+  </script>
+
+</body>
+</html>
